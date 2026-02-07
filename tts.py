@@ -21,9 +21,20 @@ def initialize_logging():
         handlers=[
             logging.FileHandler(LOG_FILE, mode='a', encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
-        ]
+        ],
+        force=True
     )
     logging.info("--- LOG SYSTEM INITIALIZED ---")
+
+
+def install_exception_logger():
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        logging.critical(
+            "Unhandled exception",
+            exc_info=(exc_type, exc_value, exc_traceback)
+        )
+
+    sys.excepthook = handle_exception
 
 
 @dataclass
@@ -338,30 +349,35 @@ class TTSApp:
 # ----------------- Main -----------------
 def main():
     initialize_logging()
+    install_exception_logger()
 
-    dependency_window = DependencyManager()
-    dependency_window.mainloop()
+    try:
+        dependency_window = DependencyManager()
+        dependency_window.mainloop()
 
-    if check_missing_dependencies():
-        show_error(
-            "Dépendances manquantes",
-            "Certaines bibliothèques sont toujours manquantes. Installation requise."
-        )
-        sys.exit(1)
+        if check_missing_dependencies():
+            show_error(
+                "Dépendances manquantes",
+                "Certaines bibliothèques sont toujours manquantes. Installation requise."
+            )
+            sys.exit(1)
 
-    groq_module, audio_segment, play_audio = load_dependencies()
+        groq_module, audio_segment, play_audio = load_dependencies()
 
-    api_key_window = ApiKeyWindow(get_api_key())
-    api_key_window.mainloop()
-    api_key = api_key_window.api_key
-    if not api_key:
-        show_error("Erreur", "Clé API vide")
-        sys.exit(1)
-    save_api_key(api_key)
+        api_key_window = ApiKeyWindow(get_api_key())
+        api_key_window.mainloop()
+        api_key = api_key_window.api_key
+        if not api_key:
+            show_error("Erreur", "Clé API vide")
+            sys.exit(1)
+        save_api_key(api_key)
 
-    main_root = tk.Tk()
-    app = TTSApp(main_root, api_key, groq_module, audio_segment, play_audio)
-    main_root.mainloop()
+        main_root = tk.Tk()
+        app = TTSApp(main_root, api_key, groq_module, audio_segment, play_audio)
+        main_root.mainloop()
+    except Exception:
+        logging.exception("Erreur inattendue pendant l'exécution.")
+        raise
 
 
 if __name__ == "__main__":
