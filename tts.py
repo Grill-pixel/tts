@@ -1,10 +1,10 @@
+import io
 import sys
 import logging
 from pathlib import Path
+import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox, ttk, filedialog
-import requests
-import threading
 
 # Vérification des modules requis
 try:
@@ -54,8 +54,6 @@ class TTSApp:
 
         self.selected_model = tk.StringVar()
         self.selected_voice = tk.StringVar()
-        self.text_input = tk.StringVar()
-        self.output_format = tk.StringVar(value="wav")
 
         self.models = []
         self.voices = []
@@ -82,15 +80,11 @@ class TTSApp:
         self.text_entry = tk.Text(frame, height=5, width=40)
         self.text_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=2)
 
-        # Format sortie
-        ttk.Label(frame, text="Format:").grid(row=3, column=0, sticky="w")
-        ttk.Combobox(frame, textvariable=self.output_format, values=["wav","mp3"], state="readonly").grid(row=3, column=1, sticky="ew", padx=5, pady=2)
-
         # Boutons
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=4, column=0, columnspan=2, pady=10)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=10)
         ttk.Button(btn_frame, text="Lire", command=self.read_text).grid(row=0, column=0, padx=5)
-        ttk.Button(btn_frame, text="Sauvegarder", command=self.save_text).grid(row=0, column=1, padx=5)
+        ttk.Button(btn_frame, text="Sauvegarder (.wav)", command=self.save_text).grid(row=0, column=1, padx=5)
 
         frame.columnconfigure(1, weight=1)
 
@@ -116,7 +110,17 @@ class TTSApp:
         self.voice_combo["values"] = self.voices
         self.selected_voice.set(self.voices[0])
 
-    def generate_speech(self, text, model, voice, format="wav"):
+    def _notify(self, title, message, level="info"):
+        def _show():
+            if level == "error":
+                messagebox.showerror(title, message)
+            elif level == "warning":
+                messagebox.showwarning(title, message)
+            else:
+                messagebox.showinfo(title, message)
+        self.master.after(0, _show)
+
+    def generate_speech_bytes(self, text, model, voice):
         try:
             response = self.client.audio.speech.create(
                 model=model,
@@ -125,18 +129,10 @@ class TTSApp:
                 response_format="wav"  # Groq Orpheus supporte wav
             )
             audio_bytes = bytes(response)
-            audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
-            if format == "mp3":
-                out_file = Path("temp.mp3")
-                audio.export(out_file, format="mp3")
-            else:
-                out_file = Path("temp.wav")
-                audio.export(out_file, format="wav")
-            logging.info(f"Fichier audio généré: {out_file}")
-            return out_file
+            logging.info("Audio reçu depuis l'API.")
+            return audio_bytes
         except Exception as e:
             logging.error(f"Génération a échoué: {e}")
-            messagebox.showerror("Erreur", f"Génération TTS échouée: {e}")
             return None
 
     def read_text(self):
@@ -146,14 +142,15 @@ class TTSApp:
             return
         model = self.selected_model.get()
         voice = self.selected_voice.get()
-        fmt = self.output_format.get()
 
         def worker():
-            out_file = self.generate_speech(text, model, voice, fmt)
-            if out_file:
-                audio = AudioSegment.from_file(out_file)
+            audio_bytes = self.generate_speech_bytes(text, model, voice)
+            if audio_bytes:
+                audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
                 play(audio)
-        threading.Thread(target=worker).start()
+            else:
+                self._notify("Erreur", "Génération TTS échouée.", level="error")
+        threading.Thread(target=worker, daemon=True).start()
 
     def save_text(self):
         text = self.text_entry.get("1.0", "end").strip()
@@ -162,19 +159,21 @@ class TTSApp:
             return
         model = self.selected_model.get()
         voice = self.selected_voice.get()
-        fmt = self.output_format.get()
 
-        out_path = filedialog.asksaveasfilename(defaultextension=f".{fmt}",
-                                                filetypes=[(fmt.upper(), f"*.{fmt}")])
+        out_path = filedialog.asksaveasfilename(defaultextension=".wav",
+                                                filetypes=[("WAV", "*.wav")])
         if not out_path:
             return
 
         def worker():
-            out_file = self.generate_speech(text, model, voice, fmt)
-            if out_file:
-                Path(out_file).rename(out_path)
-                messagebox.showinfo("Succès", f"Fichier sauvegardé: {out_path}")
-        threading.Thread(target=worker).start()
+            audio_bytes = self.generate_speech_bytes(text, model, voice)
+            if not audio_bytes:
+                self._notify("Erreur", "Génération TTS échouée.", level="error")
+                return
+            Path(out_path).write_bytes(audio_bytes)
+            logging.info(f"Fichier audio sauvegardé: {out_path}")
+            self._notify("Succès", f"Fichier sauvegardé: {out_path}")
+        threading.Thread(target=worker, daemon=True).start()
 
 
 # ----------------- Main -----------------
