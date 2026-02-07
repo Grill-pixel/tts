@@ -89,6 +89,8 @@ def show_error(title, message):
 
 
 def check_missing_dependencies():
+    if hasattr(importlib, "invalidate_caches"):
+        importlib.invalidate_caches()
     missing = []
     find_spec = None
     importlib_util = getattr(importlib, "util", None)
