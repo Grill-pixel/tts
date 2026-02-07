@@ -140,13 +140,17 @@ def load_dependencies():
     return groq_module, pydub_module.AudioSegment, playback_module.play
 
 
-class DependencyManager(tk.Tk):
-    def __init__(self):
+class DependencyManager(tk.Toplevel):
+    def __init__(self, master):
         logging.debug("Initialisation de la fenêtre DependencyManager.")
-        super().__init__()
+        super().__init__(master)
         self.title("Installation des bibliothèques")
         self.geometry("620x360")
         self.resizable(False, False)
+        self.transient(master)
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._finish)
+        self.focus_set()
         self.missing = check_missing_dependencies()
         self.status_vars = {}
         self.next_ready = tk.BooleanVar(value=False)
@@ -216,16 +220,21 @@ class DependencyManager(tk.Tk):
 
     def _finish(self):
         logging.debug("Fermeture DependencyManager.")
+        self.grab_release()
         self.destroy()
 
 
-class ApiKeyWindow(tk.Tk):
-    def __init__(self, existing_key):
+class ApiKeyWindow(tk.Toplevel):
+    def __init__(self, master, existing_key):
         logging.debug("Initialisation de la fenêtre ApiKeyWindow.")
-        super().__init__()
+        super().__init__(master)
         self.title("Clé API Groq")
         self.geometry("420x220")
         self.resizable(False, False)
+        self.transient(master)
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+        self.focus_set()
         self.api_key = None
         self._build_ui(existing_key)
 
@@ -255,11 +264,13 @@ class ApiKeyWindow(tk.Tk):
             messagebox.showerror("Erreur", "Clé API vide.")
             return
         self.api_key = value
+        self.grab_release()
         self.destroy()
 
     def _cancel(self):
         logging.debug("Annulation saisie clé API.")
         self.api_key = None
+        self.grab_release()
         self.destroy()
 
 # ----------------- TTS App -----------------
@@ -416,8 +427,10 @@ def main():
 
     try:
         logging.debug("Lancement DependencyManager.")
-        dependency_window = DependencyManager()
-        dependency_window.mainloop()
+        root = tk.Tk()
+        root.withdraw()
+        dependency_window = DependencyManager(root)
+        root.wait_window(dependency_window)
 
         if check_missing_dependencies():
             show_error(
@@ -430,8 +443,8 @@ def main():
         groq_module, audio_segment, play_audio = load_dependencies()
 
         logging.debug("Ouverture fenêtre clé API.")
-        api_key_window = ApiKeyWindow(get_api_key())
-        api_key_window.mainloop()
+        api_key_window = ApiKeyWindow(root, get_api_key())
+        root.wait_window(api_key_window)
         api_key = api_key_window.api_key
         if not api_key:
             show_error("Erreur", "Clé API vide")
@@ -439,9 +452,9 @@ def main():
         save_api_key(api_key)
 
         logging.debug("Démarrage interface principale.")
-        main_root = tk.Tk()
-        app = TTSApp(main_root, api_key, groq_module, audio_segment, play_audio)
-        main_root.mainloop()
+        root.deiconify()
+        app = TTSApp(root, api_key, groq_module, audio_segment, play_audio)
+        root.mainloop()
     except Exception:
         logging.exception("Erreur inattendue pendant l'exécution.")
         raise
