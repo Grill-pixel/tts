@@ -1,2 +1,0 @@
-Bonjour ! Ceci est un texte de test pour vérifier la synthèse vocale.
-Vous pouvez modifier ces phrases pour tester différentes longueurs ou accents.
