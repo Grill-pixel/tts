@@ -1,5 +1,6 @@
 import importlib
 import io
+import linecache
 import logging
 import subprocess
 import sys
@@ -12,11 +13,12 @@ LOG_FILE = Path("logs.txt")
 
 
 def initialize_logging():
+    logging.info("Initialisation du système de logs.")
     if LOG_FILE.exists():
         LOG_FILE.unlink()
     LOG_FILE.write_text("", encoding="utf-8")
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='[%(asctime)s] [%(levelname)s] %(message)s',
         handlers=[
             logging.FileHandler(LOG_FILE, mode='a', encoding='utf-8'),
@@ -28,6 +30,7 @@ def initialize_logging():
 
 
 def install_exception_logger():
+    logging.debug("Installation du gestionnaire d'exceptions.")
     def handle_exception(exc_type, exc_value, exc_traceback):
         logging.critical(
             "Unhandled exception",
@@ -35,6 +38,24 @@ def install_exception_logger():
         )
 
     sys.excepthook = handle_exception
+
+
+def install_line_tracer():
+    logging.debug("Activation du traçage ligne par ligne.")
+    module_path = Path(__file__).resolve()
+
+    def trace_lines(frame, event, arg):
+        if event != "line":
+            return trace_lines
+        if Path(frame.f_code.co_filename).resolve() != module_path:
+            return trace_lines
+        line_no = frame.f_lineno
+        line_text = linecache.getline(frame.f_code.co_filename, line_no).rstrip()
+        logging.debug("TRACE %s:%s %s", module_path.name, line_no, line_text)
+        return trace_lines
+
+    sys.settrace(trace_lines)
+    threading.settrace(trace_lines)
 
 
 @dataclass
@@ -53,6 +74,7 @@ REQUIRED_DEPENDENCIES = [
 API_KEY_FILE = Path("api_key.txt")
 
 def get_api_key():
+    logging.debug("Lecture de la clé API depuis %s.", API_KEY_FILE)
     if API_KEY_FILE.exists():
         return API_KEY_FILE.read_text().strip()
     return ""
@@ -63,6 +85,7 @@ def save_api_key(key):
 
 
 def show_error(title, message):
+    logging.error("Affichage erreur: %s - %s", title, message)
     root = tk.Tk()
     root.withdraw()
     messagebox.showerror(title, message)
@@ -70,10 +93,12 @@ def show_error(title, message):
 
 
 def check_missing_dependencies():
+    logging.debug("Vérification des dépendances manquantes.")
     missing = []
     for dep in REQUIRED_DEPENDENCIES:
         if importlib.util.find_spec(dep.module) is None:
             missing.append(dep)
+            logging.debug("Dépendance manquante: %s (%s)", dep.module, dep.pip_name)
     return missing
 
 
@@ -92,6 +117,7 @@ def install_dependency(dep):
 
 
 def load_dependencies():
+    logging.debug("Chargement des dépendances.")
     groq_module = importlib.import_module("groq")
     pydub_module = importlib.import_module("pydub")
     playback_module = importlib.import_module("pydub.playback")
@@ -100,6 +126,7 @@ def load_dependencies():
 
 class DependencyManager(tk.Tk):
     def __init__(self):
+        logging.debug("Initialisation de la fenêtre DependencyManager.")
         super().__init__()
         self.title("Installation des bibliothèques")
         self.geometry("620x360")
@@ -111,6 +138,7 @@ class DependencyManager(tk.Tk):
         self._refresh_status()
 
     def _build_ui(self):
+        logging.debug("Construction UI DependencyManager.")
         self.configure(padx=16, pady=16)
         title = ttk.Label(self, text="Vérification des dépendances", font=("Segoe UI", 14, "bold"))
         title.pack(anchor="w")
@@ -148,6 +176,7 @@ class DependencyManager(tk.Tk):
         self.next_button.state(["disabled"])
 
     def _install_one(self, dep):
+        logging.debug("Installation demandée pour %s.", dep.pip_name)
         self.progress.config(text=f"Installation en cours: {dep.pip_name}…")
         self.update_idletasks()
         success = install_dependency(dep)
@@ -160,6 +189,7 @@ class DependencyManager(tk.Tk):
         self._refresh_status()
 
     def _refresh_status(self):
+        logging.debug("Rafraîchissement statut dépendances.")
         missing = check_missing_dependencies()
         if not missing:
             self.next_ready.set(True)
@@ -169,11 +199,13 @@ class DependencyManager(tk.Tk):
             self.next_button.state(["disabled"])
 
     def _finish(self):
+        logging.debug("Fermeture DependencyManager.")
         self.destroy()
 
 
 class ApiKeyWindow(tk.Tk):
     def __init__(self, existing_key):
+        logging.debug("Initialisation de la fenêtre ApiKeyWindow.")
         super().__init__()
         self.title("Clé API Groq")
         self.geometry("420x220")
@@ -182,6 +214,7 @@ class ApiKeyWindow(tk.Tk):
         self._build_ui(existing_key)
 
     def _build_ui(self, existing_key):
+        logging.debug("Construction UI ApiKeyWindow.")
         self.configure(padx=20, pady=20)
         ttk.Label(self, text="Entrez votre clé API Groq", font=("Segoe UI", 12, "bold")).pack(anchor="w")
         ttk.Label(
@@ -200,6 +233,7 @@ class ApiKeyWindow(tk.Tk):
         ttk.Button(btn_frame, text="Valider", command=self._submit).pack(side="right")
 
     def _submit(self):
+        logging.debug("Validation clé API.")
         value = self.entry.get().strip()
         if not value:
             messagebox.showerror("Erreur", "Clé API vide.")
@@ -208,12 +242,14 @@ class ApiKeyWindow(tk.Tk):
         self.destroy()
 
     def _cancel(self):
+        logging.debug("Annulation saisie clé API.")
         self.api_key = None
         self.destroy()
 
 # ----------------- TTS App -----------------
 class TTSApp:
     def __init__(self, master, api_key, groq_module, audio_segment, play_audio):
+        logging.debug("Initialisation de TTSApp.")
         self.master = master
         self.master.title("TTS Orpheus")
         self.api_key = api_key
@@ -232,6 +268,7 @@ class TTSApp:
         self.fetch_models()
 
     def build_ui(self):
+        logging.debug("Construction UI TTSApp.")
         frame = ttk.Frame(self.master, padding=10)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -264,6 +301,7 @@ class TTSApp:
             response = self.client.models.list()
             self.models = [m.id for m in response.data if "orpheus" in m.id.lower()]
             if not self.models:
+                logging.warning("Aucun modèle Orpheus détecté.")
                 messagebox.showerror("Erreur", "Aucun modèle TTS Orpheus disponible.")
                 return
             self.model_combo["values"] = self.models
@@ -276,11 +314,13 @@ class TTSApp:
 
     def fetch_voices(self):
         # Ici on peut définir quelques voix par défaut pour Orpheus
+        logging.debug("Chargement des voix par défaut.")
         self.voices = ["autumn", "spring", "summer", "winter"]
         self.voice_combo["values"] = self.voices
         self.selected_voice.set(self.voices[0])
 
     def _notify(self, title, message, level="info"):
+        logging.debug("Notification %s: %s", level, message)
         def _show():
             if level == "error":
                 messagebox.showerror(title, message)
@@ -291,6 +331,7 @@ class TTSApp:
         self.master.after(0, _show)
 
     def generate_speech_bytes(self, text, model, voice):
+        logging.debug("Génération TTS demandée. Modèle=%s Voix=%s", model, voice)
         try:
             response = self.client.audio.speech.create(
                 model=model,
@@ -306,6 +347,7 @@ class TTSApp:
             return None
 
     def read_text(self):
+        logging.debug("Lecture du texte demandée.")
         text = self.text_entry.get("1.0", "end").strip()
         if not text:
             messagebox.showwarning("Attention", "Veuillez saisir un texte.")
@@ -314,6 +356,7 @@ class TTSApp:
         voice = self.selected_voice.get()
 
         def worker():
+            logging.debug("Thread lecture démarré.")
             audio_bytes = self.generate_speech_bytes(text, model, voice)
             if audio_bytes:
                 audio = self.audio_segment.from_file(io.BytesIO(audio_bytes), format="wav")
@@ -323,6 +366,7 @@ class TTSApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def save_text(self):
+        logging.debug("Sauvegarde du texte demandée.")
         text = self.text_entry.get("1.0", "end").strip()
         if not text:
             messagebox.showwarning("Attention", "Veuillez saisir un texte.")
@@ -336,6 +380,7 @@ class TTSApp:
             return
 
         def worker():
+            logging.debug("Thread sauvegarde démarré.")
             audio_bytes = self.generate_speech_bytes(text, model, voice)
             if not audio_bytes:
                 self._notify("Erreur", "Génération TTS échouée.", level="error")
@@ -348,10 +393,13 @@ class TTSApp:
 
 # ----------------- Main -----------------
 def main():
+    logging.debug("Entrée dans main.")
     initialize_logging()
     install_exception_logger()
+    install_line_tracer()
 
     try:
+        logging.debug("Lancement DependencyManager.")
         dependency_window = DependencyManager()
         dependency_window.mainloop()
 
@@ -362,8 +410,10 @@ def main():
             )
             sys.exit(1)
 
+        logging.debug("Chargement des dépendances applicatives.")
         groq_module, audio_segment, play_audio = load_dependencies()
 
+        logging.debug("Ouverture fenêtre clé API.")
         api_key_window = ApiKeyWindow(get_api_key())
         api_key_window.mainloop()
         api_key = api_key_window.api_key
@@ -372,6 +422,7 @@ def main():
             sys.exit(1)
         save_api_key(api_key)
 
+        logging.debug("Démarrage interface principale.")
         main_root = tk.Tk()
         app = TTSApp(main_root, api_key, groq_module, audio_segment, play_audio)
         main_root.mainloop()
