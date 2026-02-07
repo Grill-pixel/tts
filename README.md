@@ -6,6 +6,22 @@
 
 ---
 
+## 📚 Sommaire
+
+- [✅ Ce que fait le programme (explication simple)](#-ce-que-fait-le-programme-explication-simple)
+- [🧩 Prérequis (ce qu’il faut avant de commencer)](#-prérequis-ce-quil-faut-avant-de-commencer)
+- [📁 Fichiers importants du projet](#-fichiers-importants-du-projet)
+- [🧪 Installation pas à pas (niveau débutant)](#-installation-pas-à-pas-niveau-débutant)
+- [▶️ Lancer le programme](#-lancer-le-programme)
+- [🧭 Utilisation du programme (explication détaillée)](#-utilisation-du-programme-explication-détaillée)
+- [🧠 Comment fonctionne le programme (version simple)](#-comment-fonctionne-le-programme-version-simple)
+- [🔧 Dépannage (problèmes fréquents)](#-dépannage-problèmes-fréquents)
+- [📌 Conseils d’utilisation](#-conseils-dutilisation)
+- [📄 Licence](#-licence)
+- [✅ Résumé ultra-court](#-résumé-ultra-court)
+
+---
+
 ## ✅ Ce que fait le programme (explication simple)
 
 Le programme :
@@ -199,7 +215,7 @@ pip install groq requests
 
 ## 📄 Licence
 
-Ce projet est libre d’utilisation pour apprendre et expérimenter.
+Ce projet est distribué sous licence MIT. Consulte le fichier [LICENSE](LICENSE) pour le texte complet.
 
 ---
 
