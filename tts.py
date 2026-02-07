@@ -214,6 +214,8 @@ class DependencyManager(tk.Toplevel):
         if not missing:
             self.next_ready.set(True)
             self.next_button.state(["!disabled"])
+            logging.debug("Aucune dépendance manquante. Fermeture automatique.")
+            self.after(200, self._finish)
         else:
             self.next_ready.set(False)
             self.next_button.state(["disabled"])
