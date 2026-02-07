@@ -191,7 +191,7 @@ class DependencyManager(tk.Toplevel):
         self.progress = ttk.Label(self, text="")
         self.progress.pack(anchor="w", pady=(10, 0))
 
-        self.next_button = ttk.Button(self, text="Next", command=self._finish)
+        self.next_button = ttk.Button(self, text="Suivant", command=self._finish)
         self.next_button.pack(anchor="e", pady=(12, 0))
         self.next_button.state(["disabled"])
 
