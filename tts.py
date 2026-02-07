@@ -132,7 +132,7 @@ def load_dependencies():
 
 
 class DependencyManager(tk.Toplevel):
-    def __init__(self, master):
+    def __init__(self, master, on_done=None):
         super().__init__(master)
         self.title("Installation des bibliothèques")
         self.geometry("620x360")
@@ -140,6 +140,7 @@ class DependencyManager(tk.Toplevel):
         self.transient(master)
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._finish)
+        self.on_done = on_done
         self._show_modal()
         self.missing = check_missing_dependencies()
         self.status_vars = {}
@@ -197,6 +198,8 @@ class DependencyManager(tk.Toplevel):
     def _finish(self):
         self.grab_release()
         self.destroy()
+        if self.on_done:
+            self.on_done()
 
     def _show_modal(self):
         self.update_idletasks()
@@ -208,7 +211,7 @@ class DependencyManager(tk.Toplevel):
 
 
 class ApiKeyWindow(tk.Toplevel):
-    def __init__(self, master, existing_key):
+    def __init__(self, master, existing_key, on_done=None):
         super().__init__(master)
         self.title("Clé API Groq")
         self.geometry("420x220")
@@ -218,6 +221,7 @@ class ApiKeyWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self._show_modal()
         self.api_key = None
+        self.on_done = on_done
         self._build_ui(existing_key)
 
     def _build_ui(self, existing_key):
@@ -241,11 +245,15 @@ class ApiKeyWindow(tk.Toplevel):
         self.api_key = value
         self.grab_release()
         self.destroy()
+        if self.on_done:
+            self.on_done(self.api_key)
 
     def _cancel(self):
         self.api_key = None
         self.grab_release()
         self.destroy()
+        if self.on_done:
+            self.on_done(None)
 
     def _show_modal(self):
         self.update_idletasks()
@@ -366,32 +374,54 @@ class TTSApp:
         threading.Thread(target=worker, daemon=True).start()
 
 
+class StartupFlow:
+    def __init__(self, root):
+        self.root = root
+        self.api_key = None
+        self.groq_module = None
+        self.root.withdraw()
+        self.root.after(0, self._start_dependency_check)
+
+    def _start_dependency_check(self):
+        logging.info("Ouverture de la fenêtre de vérification des dépendances.")
+        DependencyManager(self.root, on_done=self._after_dependencies)
+
+    def _after_dependencies(self):
+        if check_missing_dependencies():
+            show_error("Dépendances manquantes", "Certaines bibliothèques sont toujours manquantes.")
+            self.root.destroy()
+            return
+        logging.info("Ouverture de la fenêtre de clé API.")
+        ApiKeyWindow(self.root, get_api_key(), on_done=self._after_api_key)
+
+    def _after_api_key(self, api_key):
+        if not api_key:
+            show_error("Erreur", "Clé API vide")
+            self.root.destroy()
+            return
+        save_api_key(api_key)
+        self.api_key = api_key
+        try:
+            self.groq_module = load_dependencies()
+        except Exception as exc:
+            logging.exception("Erreur chargement dépendances.")
+            show_error("Erreur", f"Impossible de charger Groq: {exc}")
+            self.root.destroy()
+            return
+        self._start_app()
+
+    def _start_app(self):
+        self.root.deiconify()
+        TTSApp(self.root, self.api_key, self.groq_module)
+
+
 def main():
     initialize_logging()
     install_exception_logger()
     install_line_tracer()
     try:
         root = tk.Tk()
-        root.withdraw()
-        dependency_window = DependencyManager(root)
-        root.wait_window(dependency_window)
-
-        if check_missing_dependencies():
-            show_error("Dépendances manquantes", "Certaines bibliothèques sont toujours manquantes.")
-            sys.exit(1)
-
-        api_key_window = ApiKeyWindow(root, get_api_key())
-        root.wait_window(api_key_window)
-        api_key = api_key_window.api_key
-        if not api_key:
-            show_error("Erreur", "Clé API vide")
-            sys.exit(1)
-        save_api_key(api_key)
-
-        groq_module = load_dependencies()
-
-        root.deiconify()
-        app = TTSApp(root, api_key, groq_module)
+        StartupFlow(root)
         root.mainloop()
     except Exception:
         logging.exception("Erreur inattendue pendant l'exécution.")
