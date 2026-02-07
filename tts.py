@@ -97,10 +97,12 @@ def check_missing_dependencies():
     logging.debug("Vérification des dépendances manquantes.")
     missing = []
     find_spec = None
-    if hasattr(importlib, "util") and hasattr(importlib.util, "find_spec"):
-        find_spec = importlib.util.find_spec
-    elif hasattr(importlib, "machinery") and hasattr(importlib.machinery, "PathFinder"):
-        find_spec = importlib.machinery.PathFinder.find_spec
+    importlib_util = getattr(importlib, "util", None)
+    importlib_machinery = getattr(importlib, "machinery", None)
+    if importlib_util and hasattr(importlib_util, "find_spec"):
+        find_spec = importlib_util.find_spec
+    elif importlib_machinery and hasattr(importlib_machinery, "PathFinder"):
+        find_spec = importlib_machinery.PathFinder.find_spec
     for dep in REQUIRED_DEPENDENCIES:
         if find_spec:
             spec = find_spec(dep.module)
@@ -128,9 +130,13 @@ def install_dependency(dep):
 
 def load_dependencies():
     logging.debug("Chargement des dépendances.")
-    groq_module = importlib.import_module("groq")
-    pydub_module = importlib.import_module("pydub")
-    playback_module = importlib.import_module("pydub.playback")
+    import_module = getattr(importlib, "import_module", None)
+    if not import_module:
+        def import_module(name):
+            return __import__(name, fromlist=["*"])
+    groq_module = import_module("groq")
+    pydub_module = import_module("pydub")
+    playback_module = import_module("pydub.playback")
     return groq_module, pydub_module.AudioSegment, playback_module.play
 
 
