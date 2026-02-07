@@ -138,7 +138,6 @@ class DependencyManager(tk.Toplevel):
         self.geometry("620x360")
         self.resizable(False, False)
         self.transient(master)
-        self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._finish)
         self.on_done = on_done
         self._show_modal()
@@ -206,6 +205,8 @@ class DependencyManager(tk.Toplevel):
         self.deiconify()
         self.lift()
         self.focus_force()
+        self.wait_visibility()
+        self.grab_set()
         self.attributes("-topmost", True)
         self.after(250, lambda: self.attributes("-topmost", False))
 
@@ -217,7 +218,6 @@ class ApiKeyWindow(tk.Toplevel):
         self.geometry("420x220")
         self.resizable(False, False)
         self.transient(master)
-        self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self._show_modal()
         self.api_key = None
@@ -260,6 +260,8 @@ class ApiKeyWindow(tk.Toplevel):
         self.deiconify()
         self.lift()
         self.focus_force()
+        self.wait_visibility()
+        self.grab_set()
         self.attributes("-topmost", True)
         self.after(250, lambda: self.attributes("-topmost", False))
 
