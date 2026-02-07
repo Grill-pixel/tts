@@ -351,8 +351,6 @@ def main():
             show_error("Dépendances manquantes", "Certaines bibliothèques sont toujours manquantes.")
             sys.exit(1)
 
-        groq_module = load_dependencies()
-
         api_key_window = ApiKeyWindow(root, get_api_key())
         root.wait_window(api_key_window)
         api_key = api_key_window.api_key
@@ -360,6 +358,8 @@ def main():
             show_error("Erreur", "Clé API vide")
             sys.exit(1)
         save_api_key(api_key)
+
+        groq_module = load_dependencies()
 
         root.deiconify()
         app = TTSApp(root, api_key, groq_module)
