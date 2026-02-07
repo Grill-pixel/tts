@@ -315,10 +315,15 @@ class TTSApp:
                 input=text,
                 response_format="wav"
             )
-            return bytes(response)
+            return bytes(response), None
         except Exception as e:
-            messagebox.showerror("Erreur", f"Génération TTS échouée: {e}")
-            return None
+            return None, f"Génération TTS échouée: {e}"
+
+    def _notify_error(self, title, message):
+        self.master.after(0, lambda: messagebox.showerror(title, message))
+
+    def _notify_info(self, title, message):
+        self.master.after(0, lambda: messagebox.showinfo(title, message))
 
     def read_text(self):
         text = self.text_entry.get("1.0", "end").strip()
@@ -329,7 +334,10 @@ class TTSApp:
         voice = self.selected_voice.get()
 
         def worker():
-            audio_bytes = self.generate_speech_bytes(text, model, voice)
+            audio_bytes, error = self.generate_speech_bytes(text, model, voice)
+            if error:
+                self._notify_error("Erreur", error)
+                return
             if audio_bytes:
                 temp_file = "temp_tts.wav"
                 Path(temp_file).write_bytes(audio_bytes)
@@ -348,10 +356,13 @@ class TTSApp:
             return
 
         def worker():
-            audio_bytes = self.generate_speech_bytes(text, model, voice)
+            audio_bytes, error = self.generate_speech_bytes(text, model, voice)
+            if error:
+                self._notify_error("Erreur", error)
+                return
             if audio_bytes:
                 Path(out_path).write_bytes(audio_bytes)
-                messagebox.showinfo("Succès", f"Fichier sauvegardé: {out_path}")
+                self._notify_info("Succès", f"Fichier sauvegardé: {out_path}")
         threading.Thread(target=worker, daemon=True).start()
 
 
