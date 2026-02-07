@@ -138,7 +138,7 @@ class DependencyManager(tk.Toplevel):
         self.transient(master)
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._finish)
-        self.focus_set()
+        self._show_modal()
         self.missing = check_missing_dependencies()
         self.status_vars = {}
         self.next_ready = tk.BooleanVar(value=False)
@@ -196,6 +196,14 @@ class DependencyManager(tk.Toplevel):
         self.grab_release()
         self.destroy()
 
+    def _show_modal(self):
+        self.update_idletasks()
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+        self.attributes("-topmost", True)
+        self.after(250, lambda: self.attributes("-topmost", False))
+
 
 class ApiKeyWindow(tk.Toplevel):
     def __init__(self, master, existing_key):
@@ -206,7 +214,7 @@ class ApiKeyWindow(tk.Toplevel):
         self.transient(master)
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
-        self.focus_set()
+        self._show_modal()
         self.api_key = None
         self._build_ui(existing_key)
 
@@ -236,6 +244,14 @@ class ApiKeyWindow(tk.Toplevel):
         self.api_key = None
         self.grab_release()
         self.destroy()
+
+    def _show_modal(self):
+        self.update_idletasks()
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+        self.attributes("-topmost", True)
+        self.after(250, lambda: self.attributes("-topmost", False))
 
 
 class TTSApp:
