@@ -243,7 +243,10 @@ class TTSApp:
         self.play_button.pack(side="left", padx=6)
 
         self.save_button = ttk.Button(btn_frame, text="Sauvegarder", command=self._save_audio, state="disabled")
-        self.save_button.pack(side="left")
+        self.save_button.pack(side="left", padx=6)
+
+        self.quit_button = ttk.Button(btn_frame, text="Quitter", command=self._quit_app)
+        self.quit_button.pack(side="left")
 
     # ---------------- Flow ----------------
     def _start_dependency_check(self):
@@ -402,6 +405,9 @@ class TTSApp:
     def _enable_buttons(self):
         self.play_button.state(["!disabled"])
         self.save_button.state(["!disabled"])
+
+    def _quit_app(self):
+        self.root.destroy()
 
 # ===================== ENTRY POINT =====================
 def main():
