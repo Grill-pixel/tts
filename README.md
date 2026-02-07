@@ -1,3 +1,5 @@
+[Français](README.md) | [English](README.en.md) | [العربية](README.ar.md)
+
 # Application TTS Groq (Text-to-Speech)
 
 > **Objectif du projet** : fournir une petite application graphique (Tkinter) qui transforme un texte en audio grâce à l’API **Groq TTS**.
