@@ -1,4 +1,5 @@
 import importlib
+import pkgutil
 import io
 import linecache
 import logging
@@ -95,8 +96,17 @@ def show_error(title, message):
 def check_missing_dependencies():
     logging.debug("Vérification des dépendances manquantes.")
     missing = []
+    find_spec = None
+    if hasattr(importlib, "util") and hasattr(importlib.util, "find_spec"):
+        find_spec = importlib.util.find_spec
+    elif hasattr(importlib, "machinery") and hasattr(importlib.machinery, "PathFinder"):
+        find_spec = importlib.machinery.PathFinder.find_spec
     for dep in REQUIRED_DEPENDENCIES:
-        if importlib.util.find_spec(dep.module) is None:
+        if find_spec:
+            spec = find_spec(dep.module)
+        else:
+            spec = pkgutil.find_loader(dep.module)
+        if spec is None:
             missing.append(dep)
             logging.debug("Dépendance manquante: %s (%s)", dep.module, dep.pip_name)
     return missing
